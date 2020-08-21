@@ -1,6 +1,7 @@
 import { timeout } from "thyming";
 import { getClient } from "./discord";
-import { createMatch } from "./match";
+import { saveMatch } from "./match";
+import { setUser } from "./users";
 import {
   Emojis,
   matchedText,
@@ -12,10 +13,12 @@ import {
   matchResults,
   matchSubmitted,
 } from "./strings";
+import { compareUsers } from "./mmr";
 
 const MIN_MMR_DIFF = 50;
 let matchmakingEntrants = {};
-let minMmrDiff = MIN_MMR_DIFF;
+// start high
+let minMmrDiff = MIN_MMR_DIFF * 2;
 let matchTimer = null;
 
 export function resetMatchmaker() {
@@ -167,39 +170,66 @@ async function tick() {
         message.react(Emojis.white_check_mark),
         message.react(Emojis.no_entry),
       ]);
-
-      try {
-        await waitForMatchReactions(message, match);
-        await message.edit("Setting up match results...");
-        await message.reactions.removeAll();
-        await Promise.all([
-          message.react(Emojis.arrow_left),
-          message.react(Emojis.arrow_down),
-          message.react(Emojis.arrow_right),
-          message.react(Emojis.no_entry),
-        ]);
-        await message.edit(matchText(match));
-        const matchData = await createMatch(match, message.id);
-        await waitForMatchResults(message, match);
-        console.log("Finished with match, got results!", matchData);
-      } catch (e) {
-        match.currentQuestion = null;
-        await message.delete();
-        firstUser.isMatched = false;
-        secondUser.isMatched = false;
-        firstUser.user.recentMatches.push({
-          userId: secondUser.user.id,
-          endTime: Date.now(),
-        });
-        secondUser.user.recentMatches.push({
-          userId: firstUser.user.id,
-          endTime: Date.now(),
-        });
-      }
+      runMatch(message, match);
     })
   );
 
   scheduleTick();
+}
+
+export async function runMatch(message, match) {
+  const [firstUser, secondUser] = match.users;
+
+  try {
+    await waitForMatchReactions(message, match);
+    await message.edit("Setting up match results...");
+    await message.reactions.removeAll();
+    await Promise.all([
+      message.react(Emojis.arrow_left),
+      message.react(Emojis.arrow_down),
+      message.react(Emojis.arrow_right),
+      message.react(Emojis.no_entry),
+    ]);
+    await message.edit(matchText(match));
+    await saveMatch(match, message.id);
+    const [results] = await waitForMatchResults(message, match);
+    console.log("Finished with match, got results!", results);
+
+    if (results.disputed) {
+      console.log("This match was disputed! D:");
+      match.disputed = true;
+    } else {
+      const mmrChanges = compareUsers(firstUser.user.mmr, firstUser.user.mmr);
+      console.log(mmrChanges);
+      const resultArray = [results.firstWon, results.secondWon];
+      match.users.forEach((entry, i) => {
+        if (resultArray[i]) {
+          entry.user.mmr += mmrChanges[i].win;
+        } else {
+          entry.user.mmr += mmrChanges[i].lose;
+        }
+      });
+    }
+
+    await saveMatch(match, message.id);
+    match.users.forEach((match) => {
+      setUser(match.user);
+    });
+  } catch (e) {
+    await message.delete();
+  } finally {
+    match.currentQuestion = null;
+    firstUser.isMatched = false;
+    secondUser.isMatched = false;
+    firstUser.user.recentMatches.push({
+      userId: secondUser.user.id,
+      endTime: Date.now(),
+    });
+    secondUser.user.recentMatches.push({
+      userId: firstUser.user.id,
+      endTime: Date.now(),
+    });
+  }
 }
 
 export async function waitForMatchReactions(message, match) {
@@ -340,7 +370,9 @@ export async function waitForMatchResults(message, match) {
     }
   });
 
-  return new Promise((resolve) => collector.on("end", () => resolve()));
+  return new Promise((resolve) =>
+    collector.on("end", () => resolve(match.results))
+  );
 }
 
 export function resultToBitfield(result) {

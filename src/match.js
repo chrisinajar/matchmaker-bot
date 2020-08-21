@@ -1,6 +1,6 @@
 import { getDB } from "./db";
 
-export async function createMatch(_match, id) {
+export async function saveMatch(_match, id) {
   const match = { ..._match };
   const db = await getDB("matches");
   match.id = id;

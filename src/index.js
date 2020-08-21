@@ -45,7 +45,12 @@ export default async function init() {
     await matchmakingChannel.fetch();
     await matchmakingChannel.messages.fetch();
     matchmakingChannel.messages.cache
-      .filter((msg) => msg.member.id === guild.me.id)
+      .filter(
+        (msg) =>
+          msg.member.id === guild.me.id &&
+          (msg.content.startsWith("Matchmaking is online") ||
+            msg.content.indexOf(`You're now entered into matchmaking`) !== -1)
+      )
       .map((msg) => msg.delete());
     matchmakingStatusMessage = await matchmakingChannel.send(
       "Matchmaking is online and running!"
@@ -76,6 +81,10 @@ export default async function init() {
         matchmakingChannel,
         matchmakingStatusMessage
       );
+    } else if (msg.content === "!mmr") {
+      const user = await updateUser(msg.member);
+      const roundedMMR = Math.round(user.mmr * 100) / 100;
+      await msg.reply(`You have ${roundedMMR} MMR.`);
     }
   });
 }

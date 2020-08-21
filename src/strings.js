@@ -25,9 +25,10 @@ export function randomMatchEmoji() {
 
 export function matchedText(match) {
   const [firstUser, secondUser] = match.users;
-  return `${randomMatchEmoji()} <@${firstUser.user.id}> (${
-    firstUser.user.mmr
-  }) and <@${secondUser.user.id}> (${secondUser.user.mmr}) should play!
+  return `**MATCH FOUND!!**
+${randomMatchEmoji()} <@${firstUser.user.id}> (${firstUser.user.mmr}) and <@${
+    secondUser.user.id
+  }> (${secondUser.user.mmr}) should play!
 
 ${Emojis.white_check_mark} Accept match
 ${Emojis.no_entry} Reject match
