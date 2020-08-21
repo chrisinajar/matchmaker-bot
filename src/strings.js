@@ -76,7 +76,7 @@ export function matchWinnerText(match) {
     return `**${Emojis.trophy} Winner** <@${secondUser.user.id}>`;
   }
   if (result.canceled) {
-    return `***Match canceled***`;
+    return `**Match canceled**`;
   }
   return "";
 }
@@ -91,7 +91,7 @@ export function matchWinnerLoserText(match) {
     return `**${Emojis.trophy} <@${secondUser.user.id}>** defeated **<@${firstUser.user.id}> ${Emojis.trophy}**`;
   }
   if (result.canceled) {
-    return `***Match canceled***`;
+    return `**Match canceled**`;
   }
   return "";
 }
@@ -143,4 +143,13 @@ export function resultToEmojis(result) {
     emojis.push(Emojis.arrow_right);
   }
   return emojis;
+}
+
+export function instructionsText() {
+  return `
+
+**Commands:**
+ - \`!matchmaking\` Enter the matchmaking queue
+ - \`!mmr\` Get your current mmr value
+`;
 }

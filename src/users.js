@@ -5,13 +5,7 @@ export async function getUser(userId) {
   try {
     const user = await userDB.get(userId);
 
-    if (!user.mmr) {
-      user.mmr = 1000;
-    }
-    // if (!user.recentMatches) {
-    user.recentMatches = [];
-    // }
-    return user;
+    return parseUser(user);
   } catch (err) {
     if (err.type !== "NotFoundError") {
       throw err;
@@ -48,5 +42,16 @@ export async function updateUser(member) {
     user = updateUserData(user, member);
   }
   await setUser(user);
+  return parseUser(user);
+}
+
+export function parseUser(user) {
+  if (!user.mmr) {
+    user.mmr = 1000;
+  }
+  // if (!user.recentMatches) {
+  user.recentMatches = [];
+  // }
+
   return user;
 }

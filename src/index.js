@@ -6,59 +6,69 @@ import {
   removeFromMatchmaking,
   getUserCount,
 } from "./matchmaker";
-import { Emojis } from "./strings";
+import { Emojis, instructionsText } from "./strings";
 
 const STOP_EMOJI = Emojis.octagonal_sign;
 
-async function updateStatusMessage(channel, message) {
+async function updateStatusMessage(channel, messages) {
+  const message = messages[channel.guild.id];
+  const guildId = channel.guild.id;
+  console.log("Editing status message in", guildId, channel.guild.name);
   if (message) {
     message.delete();
   }
-  const userCount = getUserCount();
+  const userCount = getUserCount(guildId);
   if (userCount === 0) {
-    return channel.send(`Matchmaking is online and running!`);
+    console.log("Sending initial");
+    messages[guildId] = await channel.send(
+      `Matchmaking is online and running! This bot is still a work in progress, but more or less works. Please use it! Play ranked games now! ${instructionsText()}`
+    );
+    return;
   }
-  return channel.send(
-    `Matchmaking is online and running! There are ${userCount} users playing now!`
+  console.log("Sending count");
+  messages[guildId] = await channel.send(
+    `Matchmaking is online and running! There are ${userCount} users playing now!${instructionsText()}`
   );
 }
 
 export default async function init() {
   const client = await getClient();
 
-  let matchmakingStatusMessage = null;
-  let matchmakingChannel = null;
+  const matchmakingStatusMessages = {};
+  const matchmakingChannels = {};
 
-  client.guilds.cache.map(async (guild) => {
-    if (matchmakingStatusMessage) {
-      return;
-    }
-    matchmakingChannel = guild.channels.cache.find(
+  client.guilds.cache.reduce(async (wait, guild) => {
+    await wait;
+    console.log("Initializing in", guild.name);
+    const guildId = guild.id;
+    const matchmakingChannel = guild.channels.cache.find(
       (e) => e.name === "matchmaking"
     );
+    matchmakingChannels[guildId] = matchmakingChannel;
     if (!matchmakingChannel) {
-      matchmakingChannel = await guild.channels.create("matchmaking");
-    }
-    if (!matchmakingChannel) {
-      console.error("Could not create matchmaking channel!");
+      console.error("Could not find matchmaking channel!");
+      return;
     }
     await matchmakingChannel.fetch();
     await matchmakingChannel.messages.fetch();
-    matchmakingChannel.messages.cache
-      .filter(
-        (msg) =>
-          msg.member.id === guild.me.id &&
-          (msg.content.startsWith("Matchmaking is online") ||
-            msg.content.indexOf(`You're now entered into matchmaking`) !== -1)
-      )
-      .map((msg) => msg.delete());
-    matchmakingStatusMessage = await matchmakingChannel.send(
-      "Matchmaking is online and running!"
+    await Promise.all(
+      matchmakingChannel.messages.cache
+        .filter(
+          (msg) =>
+            msg.content === "!matchmaking" ||
+            msg.content === "!mmr" ||
+            (msg.member.id === guild.me.id &&
+              !msg.content.startsWith(`**${Emojis.trophy}`))
+        )
+        .map((msg) => msg.delete())
     );
-  });
+    await updateStatusMessage(matchmakingChannel, matchmakingStatusMessages);
+  }, null);
 
   client.on("message", async (msg) => {
     if (msg.content === "!matchmaking") {
+      const guildId = msg.guild.id;
+      const matchmakingChannel = matchmakingChannels[guildId];
       const state = isInMatchmaking(msg.member);
       if (state) {
         await removeFromMatchmaking(state.message.id);
@@ -70,21 +80,16 @@ export default async function init() {
       addToMatchmaking(connectionMessage, user);
       await msg.delete();
       await connectionMessage.react(STOP_EMOJI);
-      matchmakingStatusMessage = await updateStatusMessage(
-        matchmakingChannel,
-        matchmakingStatusMessage
-      );
+      await updateStatusMessage(matchmakingChannel, matchmakingStatusMessages);
       await waitForMatchmakingExit(connectionMessage, user.id);
       removeFromMatchmaking(connectionMessage.id);
 
-      matchmakingStatusMessage = await updateStatusMessage(
-        matchmakingChannel,
-        matchmakingStatusMessage
-      );
+      await updateStatusMessage(matchmakingChannel, matchmakingStatusMessages);
     } else if (msg.content === "!mmr") {
       const user = await updateUser(msg.member);
       const roundedMMR = Math.round(user.mmr * 100) / 100;
       await msg.reply(`You have ${roundedMMR} MMR.`);
+      await msg.delete();
     }
   });
 }

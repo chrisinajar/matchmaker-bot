@@ -76,18 +76,20 @@ export function endMatch(match) {
   }
 }
 
-export function getUserCount() {
-  return Object.keys(matchmakingEntrants).length;
+export function getUserCount(guildId) {
+  return Object.values(matchmakingEntrants).filter(
+    (entry) => entry.message.guild.id === guildId
+  ).length;
 }
 
 export function hasRecentlyPlayed(userA, userB) {
-  const recentMatches = userA.recentMatches.slice(0, 5);
+  const recentMatches = (userA.recentMatches || []).slice(0, 5);
 
   return !!recentMatches.find((entry) => {
     if (entry.userId !== userB.id) {
       return false;
     }
-    if (Date.now() > entry.endTime + 1000 * 60) {
+    if (Date.now() > entry.endTime + 1000 * 60 * 5) {
       return false;
     }
     return true;
@@ -95,11 +97,30 @@ export function hasRecentlyPlayed(userA, userB) {
 }
 
 export function getUserMatches() {
-  minMmrDiff = (minMmrDiff + 1) * 1.1;
+  const validUsers = Object.values(matchmakingEntrants).filter(
+    (entry) => !entry.inGame && !entry.isMatched
+  );
+  const guilds = validUsers
+    .filter((entry, i) => validUsers.indexOf(entry) === i)
+    .map((entry) => entry.message.guild.id);
+
+  return guilds.reduce((matches, guildId) => {
+    const queue = validUsers
+      .filter((entry) => entry.message.guild.id === guildId)
+      .sort((a, b) => a.user.mmr - b.user.mmr);
+
+    if (queue.length < 2) {
+      return matches;
+    }
+
+    return matches.concat(calculateMatches(queue));
+  }, []);
+}
+export function calculateMatches(queue) {
   const matches = [];
-  const queue = Object.values(matchmakingEntrants)
-    .filter((entry) => !entry.inGame)
-    .sort((a, b) => a.user.mmr - b.user.mmr);
+
+  // only grow mmr diff if there's enough users queued
+  minMmrDiff = (minMmrDiff + 1) * 1.1;
 
   queue.forEach((entry, i) => {
     if (i === 0) {
@@ -109,6 +130,9 @@ export function getUserMatches() {
       return;
     }
     const previousEntry = queue[i - 1];
+    if (entry.message.guild.id !== previousEntry.message.guild.id) {
+      return;
+    }
     if (previousEntry.inGame || previousEntry.isMatched) {
       return;
     }
@@ -199,16 +223,18 @@ export async function runMatch(message, match) {
       console.log("This match was disputed! D:");
       match.disputed = true;
     } else {
-      const mmrChanges = compareUsers(firstUser.user.mmr, firstUser.user.mmr);
+      const mmrChanges = compareUsers(firstUser.user.mmr, secondUser.user.mmr);
       console.log(mmrChanges);
-      const resultArray = [results.firstWon, results.secondWon];
-      match.users.forEach((entry, i) => {
-        if (resultArray[i]) {
-          entry.user.mmr += mmrChanges[i].win;
-        } else {
-          entry.user.mmr += mmrChanges[i].lose;
-        }
-      });
+      if (!results.canceled && !results.disputed) {
+        const resultArray = [results.firstWon, results.secondWon];
+        match.users.forEach((entry, i) => {
+          if (resultArray[i]) {
+            entry.user.mmr += mmrChanges[i].win;
+          } else {
+            entry.user.mmr += mmrChanges[i].lose;
+          }
+        });
+      }
     }
 
     await saveMatch(match, message.id);
@@ -216,6 +242,7 @@ export async function runMatch(message, match) {
       setUser(match.user);
     });
   } catch (e) {
+    match.rejected = true;
     await message.delete();
   } finally {
     match.currentQuestion = null;
@@ -223,11 +250,11 @@ export async function runMatch(message, match) {
     secondUser.isMatched = false;
     firstUser.user.recentMatches.push({
       userId: secondUser.user.id,
-      endTime: Date.now(),
+      endTime: Date.now() + (match.rejected ? 600000 : 0),
     });
     secondUser.user.recentMatches.push({
       userId: firstUser.user.id,
-      endTime: Date.now(),
+      endTime: Date.now() + (match.rejected ? 600000 : 0),
     });
   }
 }
@@ -349,7 +376,9 @@ export async function waitForMatchResults(message, match) {
       resultToBitfield(firstResult) !== resultToBitfield(secondResult);
 
     if (disputed) {
-      message.edit(`${matchText(match)}${matchDisputeText(match)}`);
+      message.edit(
+        `${matchText(match)}${matchResults(match)}${matchDisputeText(match)}`
+      );
     } else if (hasResults && hasIncompleteResults) {
       message.edit(
         `${matchText(match)}${matchResults(match)}${matchPartialResults(match)}`

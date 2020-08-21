@@ -11,11 +11,17 @@ import {
 const message = {
   id: "messageId",
   delete: jest.fn(),
+  guild: {
+    id: "guildId",
+  },
 };
 
 const message2 = {
   id: "messageId2",
   delete: jest.fn(),
+  guild: {
+    id: "guildId",
+  },
 };
 
 const user = {
@@ -35,9 +41,9 @@ describe("matchmaker", () => {
   beforeEach(() => resetMatchmaker());
 
   it("user count increases when you add people", () => {
-    expect(getUserCount()).toBe(0);
+    expect(getUserCount("guildId")).toBe(0);
     addToMatchmaking(message, user);
-    expect(getUserCount()).toBe(1);
+    expect(getUserCount("guildId")).toBe(1);
   });
 
   it("can query if a user is in matchmaking", () => {
@@ -47,17 +53,17 @@ describe("matchmaker", () => {
 
   it("can remove users from matchmaking", () => {
     addToMatchmaking(message, user);
-    expect(getUserCount()).toBe(1);
+    expect(getUserCount("guildId")).toBe(1);
     expect(isInMatchmaking(user)).toBeTruthy();
     removeFromMatchmaking(message.id);
-    expect(getUserCount()).toBe(0);
+    expect(getUserCount("guildId")).toBe(0);
     expect(isInMatchmaking(user)).not.toBeTruthy();
   });
 
   it("matches two users of similar mmrs", () => {
     addToMatchmaking(message, user);
     addToMatchmaking(message2, user2);
-    expect(getUserCount()).toBe(2);
+    expect(getUserCount("guildId")).toBe(2);
 
     const results = getUserMatches();
     expect(results.length).toBe(1);
@@ -70,7 +76,7 @@ describe("matchmaker", () => {
   it("doesn't match two users of similar mmrs", () => {
     addToMatchmaking(message, user);
     addToMatchmaking(message2, { ...user2, mmr: 1200 });
-    expect(getUserCount()).toBe(2);
+    expect(getUserCount("guildId")).toBe(2);
 
     const results = getUserMatches();
     expect(results.length).toBe(0);
@@ -78,8 +84,8 @@ describe("matchmaker", () => {
 
   it("can reset", () => {
     addToMatchmaking(message, user);
-    expect(getUserCount()).toBe(1);
+    expect(getUserCount("guildId")).toBe(1);
     resetMatchmaker();
-    expect(getUserCount()).toBe(0);
+    expect(getUserCount("guildId")).toBe(0);
   });
 });
