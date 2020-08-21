@@ -11,6 +11,7 @@ The roadmap is not strictly ordered by priority, but things near the end will ge
 - [x] Accepting matches and reporting results
 - [x] Adjusting MMR based on results
 - [ ] Timeouts for queuing, accepting matches, reporting results
+- [ ] Make MMR data per-server instead of global
 - [ ] Log disputes into a queue
 - [ ] Maintain queue + match state when you re-run `!matchmaking`
 - [ ] Do things with the dispute queue

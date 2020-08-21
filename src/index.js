@@ -6,7 +6,13 @@ import {
   removeFromMatchmaking,
   getUserCount,
 } from "./matchmaker";
-import { Emojis, instructionsText } from "./strings";
+import {
+  Emojis,
+  instructionsText,
+  betaWarningText,
+  aboutBotText,
+  enteredMatchmakingText,
+} from "./strings";
 
 const STOP_EMOJI = Emojis.octagonal_sign;
 
@@ -21,13 +27,13 @@ async function updateStatusMessage(channel, messages) {
   if (userCount === 0) {
     console.log("Sending initial");
     messages[guildId] = await channel.send(
-      `Matchmaking is online and running! This bot is still a work in progress, but more or less works. Please use it! Play ranked games now! ${instructionsText()}`
+      `Matchmaking is online and running!\n${betaWarningText()}${instructionsText()}`
     );
     return;
   }
   console.log("Sending count");
   messages[guildId] = await channel.send(
-    `Matchmaking is online and running! There are ${userCount} users playing now!${instructionsText()}`
+    `Matchmaking is online and running! There are ${userCount} users playing now!\n${betaWarningText()}${instructionsText()}`
   );
 }
 
@@ -57,6 +63,7 @@ export default async function init() {
           (msg) =>
             msg.content === "!matchmaking" ||
             msg.content === "!mmr" ||
+            msg.content === "!about" ||
             (msg.member.id === guild.me.id &&
               !msg.content.startsWith(`**${Emojis.trophy}`))
         )
@@ -74,9 +81,7 @@ export default async function init() {
         await removeFromMatchmaking(state.message.id);
       }
       const user = await updateUser(msg.member);
-      const connectionMessage = await msg.reply(
-        `You're now entered into matchmaking! React with ${STOP_EMOJI} to stop`
-      );
+      const connectionMessage = await msg.reply(enteredMatchmakingText());
       addToMatchmaking(connectionMessage, user);
       await msg.delete();
       await connectionMessage.react(STOP_EMOJI);
@@ -89,6 +94,9 @@ export default async function init() {
       const user = await updateUser(msg.member);
       const roundedMMR = Math.round(user.mmr * 100) / 100;
       await msg.reply(`You have ${roundedMMR} MMR.`);
+      await msg.delete();
+    } else if (msg.content === "!about") {
+      await msg.reply(aboutBotText());
       await msg.delete();
     }
   });

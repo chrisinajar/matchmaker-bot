@@ -147,9 +147,28 @@ export function resultToEmojis(result) {
 
 export function instructionsText() {
   return `
-
 **Commands:**
  - \`!matchmaking\` Enter the matchmaking queue
  - \`!mmr\` Get your current mmr value
+ - \`!about\` Information about this bot and its development
 `;
+}
+
+export function betaWarningText() {
+  return `
+${Emojis.warning} This bot is a work in progress, report bugs!
+`;
+}
+export function aboutBotText() {
+  return `Matchmaker is a nodejs bot written by chrisinajar <https://github.com/chrisinajar> for the Jazz Improv melee community
+
+ - Source code: https://github.com/chrisinajar/matchmaker-bot
+ - Development roadmap: <https://github.com/chrisinajar/matchmaker-bot#roadmap>
+ - Report issues or give feedback: <https://github.com/chrisinajar/matchmaker-bot/issues>
+`;
+}
+
+export function enteredMatchmakingText() {
+  return `You're now entered into matchmaking! React with ${Emojis.octagonal_sign} to leave the queue.
+You don't need to watch this channel, I'll mention you if a match is found!`;
 }
