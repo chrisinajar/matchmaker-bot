@@ -1,7 +1,7 @@
 import { timeout } from "thyming";
 import { getClient } from "./discord";
 import { saveMatch } from "./match";
-import { setUser } from "./users";
+import { setUser, mmrForGuild } from "./users";
 import {
   Emojis,
   matchedText,
@@ -49,12 +49,15 @@ export async function addToMatchmaking(connectionMessage, user) {
   scheduleTick();
 }
 
-export async function removeFromMatchmaking(messageId) {
+export async function removeFromMatchmaking(messageId, reason) {
   const state = matchmakingEntrants[messageId];
   if (!state) {
     return;
   }
   delete matchmakingEntrants[messageId];
+  if (reason) {
+    await state.message.channel.send(`<@${state.user.id}> ${reason}`);
+  }
   await state.message.delete();
 
   if (state.currentMatch) {
@@ -107,7 +110,9 @@ export function getUserMatches() {
   return guilds.reduce((matches, guildId) => {
     const queue = validUsers
       .filter((entry) => entry.message.guild.id === guildId)
-      .sort((a, b) => a.user.mmr - b.user.mmr);
+      .sort(
+        (a, b) => mmrForGuild(a.user, guildId) - mmrForGuild(b.user, guildId)
+      );
 
     if (queue.length < 2) {
       return matches;
@@ -130,7 +135,8 @@ export function calculateMatches(queue) {
       return;
     }
     const previousEntry = queue[i - 1];
-    if (entry.message.guild.id !== previousEntry.message.guild.id) {
+    const guildId = entry.message.guild.id;
+    if (previousEntry.message.guild.id !== guildId) {
       return;
     }
     if (previousEntry.inGame || previousEntry.isMatched) {
@@ -143,8 +149,8 @@ export function calculateMatches(queue) {
       console.log("recent match", entry.user);
       return;
     }
-    const myMmr = entry.user.mmr;
-    const mmrDiff = Math.abs(previousEntry.user.mmr - myMmr);
+    const myMmr = mmrForGuild(entry.user, guildId);
+    const mmrDiff = Math.abs(mmrForGuild(previousEntry.user, guildId) - myMmr);
     minMmrDiff = Math.min(minMmrDiff, mmrDiff * 1.1);
     if (mmrDiff <= minMmrDiff) {
       entry.isMatched = true;
@@ -167,14 +173,13 @@ async function tick() {
   if (matchTimer) {
     matchTimer();
   }
-  console.log("matchmaker tick");
   const matches = getUserMatches();
-  console.log("I think these matches should happen now", matches);
 
   if (!matches.length) {
     scheduleTick(60000);
     return;
   }
+  console.log("I think these matches should happen now", matches);
 
   // const client = await getClient();
 
@@ -203,6 +208,7 @@ async function tick() {
 
 export async function runMatch(message, match) {
   const [firstUser, secondUser] = match.users;
+  const guildId = message.guild.id;
 
   try {
     await waitForMatchReactions(message, match);
@@ -223,15 +229,18 @@ export async function runMatch(message, match) {
       console.log("This match was disputed! D:");
       match.disputed = true;
     } else {
-      const mmrChanges = compareUsers(firstUser.user.mmr, secondUser.user.mmr);
+      const mmrChanges = compareUsers(
+        mmrForGuild(firstUser.user, guildId),
+        mmrForGuild(secondUser.user, guildId)
+      );
       console.log(mmrChanges);
       if (!results.canceled && !results.disputed) {
         const resultArray = [results.firstWon, results.secondWon];
         match.users.forEach((entry, i) => {
           if (resultArray[i]) {
-            entry.user.mmr += mmrChanges[i].win;
+            entry.user.mmr[guildId] += mmrChanges[i].win;
           } else {
-            entry.user.mmr += mmrChanges[i].lose;
+            entry.user.mmr[guildId] += mmrChanges[i].lose;
           }
         });
       }
@@ -243,6 +252,7 @@ export async function runMatch(message, match) {
     });
   } catch (e) {
     match.rejected = true;
+    match.currentQuestion = null;
     await message.delete();
   } finally {
     match.currentQuestion = null;
@@ -256,6 +266,8 @@ export async function runMatch(message, match) {
       userId: firstUser.user.id,
       endTime: Date.now() + (match.rejected ? 600000 : 0),
     });
+
+    scheduleTick();
   }
 }
 
@@ -303,7 +315,29 @@ export async function waitForMatchReactions(message, match) {
     }
   });
   return new Promise((resolve, reject) => {
+    let ended = false;
+    const cancelTimer = timeout(() => {
+      console.log("Match timeout...");
+      ended = true;
+      reject();
+
+      const reason =
+        "You didn't accept your match in time and have been removed from the matchmaking queue, use `!matchmaking` to rejoin at any time!";
+
+      if (firstAnswered === null) {
+        removeFromMatchmaking(firstUser.message.id, reason);
+      }
+      if (secondAnswered === null) {
+        removeFromMatchmaking(secondUser.message.id, reason);
+      }
+    }, 60000);
+
     collector.on("end", (collected) => {
+      cancelTimer();
+      if (ended) {
+        return;
+      }
+      ended = true;
       if (!firstAnswered || !secondAnswered) {
         reject();
       }

@@ -5405,6 +5405,11 @@ v8flags@^3.1.1:
   dependencies:
     homedir-polyfill "^1.0.1"
 
+vague-time@^2.4.2:
+  version "2.4.2"
+  resolved "https://registry.yarnpkg.com/vague-time/-/vague-time-2.4.2.tgz#28cb39384419e460c8788393709ab32991db1657"
+  integrity sha512-28IHT/x6pmAhUPV/wXDHFWNouZLynayka5hvmbntsT838vvx30Qa3k+3TVKwLwty/FkfgJdStlGxrLNcrDJEhA==
+
 validate-npm-package-license@^3.0.1:
   version "3.0.4"
   resolved "https://registry.yarnpkg.com/validate-npm-package-license/-/validate-npm-package-license-3.0.4.tgz#fc91f6b9c7ba15c857f4cb2c5defeec39d4f410a"

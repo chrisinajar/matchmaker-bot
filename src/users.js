@@ -45,13 +45,20 @@ export async function updateUser(member) {
   return parseUser(user);
 }
 
-export function parseUser(user) {
-  if (!user.mmr) {
-    user.mmr = 1000;
+export function mmrForGuild(user, guildId) {
+  if (!user.mmr[guildId]) {
+    user.mmr[guildId] = 1000;
   }
-  // if (!user.recentMatches) {
-  user.recentMatches = [];
-  // }
+  return user.mmr[guildId];
+}
+
+export function parseUser(user) {
+  if (!user.mmr || typeof user.mmr !== "object") {
+    user.mmr = {};
+  }
+  if (!user.recentMatches) {
+    user.recentMatches = [];
+  }
 
   return user;
 }

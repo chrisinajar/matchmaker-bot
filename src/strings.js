@@ -1,3 +1,5 @@
+import vt from "vague-time";
+
 export const Emojis = {
   white_check_mark: "✅",
   no_entry: "🚫",
@@ -12,8 +14,18 @@ export const Emojis = {
   two_men_holding_hands: "👬",
   two_women_holding_hands: "👭",
   trophy: "🏆",
+  stopwatch: "⏱️",
 };
 
+const BOOT_TIME = Date.now();
+
+export function uptimeText() {
+  const vague = vt.get({
+    to: BOOT_TIME,
+  });
+  return `
+${Emojis.stopwatch} The bot last rebooted ${vague}`;
+}
 export function randomMatchEmoji() {
   const options = [
     "couple",
