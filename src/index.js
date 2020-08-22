@@ -44,7 +44,7 @@ async function updateStatusMessage(channel, messages) {
   }
   messageText = messageText.trim();
   if (message) {
-    if (channel.lastMessage.id === message.id) {
+    if (channel.lastMessage && channel.lastMessage.id === message.id) {
       if (message.content !== messageText) {
         await message.edit(messageText);
       }
@@ -57,6 +57,8 @@ async function updateStatusMessage(channel, messages) {
 
 export default async function init() {
   const client = await getClient();
+
+  await client.user.setActivity("maths", { type: "WATCHING" });
 
   const matchmakingStatusMessages = {};
   const matchmakingChannels = {};
@@ -114,11 +116,21 @@ export default async function init() {
     scheduleStatusMessageUpdate(matchmakingChannel, matchmakingStatusMessages);
 
     if (msg.content === "!matchmaking") {
+      const user = await updateUser(msg.member);
       const state = isInMatchmaking(msg.member);
       if (state) {
+        await msg.delete();
+        const replyMessage = await msg.reply(
+          `You are already queued for matchmaking. React with ${Emojis.octagonal_sign} to leave the queue`
+        );
+        await replyMessage.react(STOP_EMOJI);
+        await waitForMatchmakingExit(replyMessage, user.id);
         await removeFromMatchmaking(state.message.id);
+        await replyMessage.delete();
+
+        return;
+        // await removeFromMatchmaking(state.message.id);
       }
-      const user = await updateUser(msg.member);
       const connectionMessage = await msg.reply(enteredMatchmakingText());
       addToMatchmaking(connectionMessage, user);
       await msg.delete();
