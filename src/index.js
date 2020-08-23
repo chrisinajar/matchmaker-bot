@@ -68,7 +68,9 @@ export default async function init() {
     console.log("Initializing in", guild.name);
     const guildId = guild.id;
     const matchmakingChannel = guild.channels.cache.find(
-      (e) => e.name === "matchmaking"
+      (e) =>
+        e.name.toLowerCase() === "matchmaking" ||
+        e.name.toLowerCase() === "ranked"
     );
     matchmakingChannels[guildId] = matchmakingChannel;
     if (!matchmakingChannel) {
