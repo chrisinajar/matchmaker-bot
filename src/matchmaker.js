@@ -292,19 +292,20 @@ export async function waitForMatchReactions(message, match) {
   }, {});
 
   collector.on("collect", (r, user) => {
+    const reason = "You rejected a match and have been removed from the matchmaking queue, use `!matchmaking` to rejoin at any time!";
     // remove existing emoji
     if (user.id === firstUser.user.id) {
-      console.log("first user is reacting", firstAnswered);
       if (r.emoji.name === Emojis.no_entry) {
         collector.stop();
+        removeFromMatchmaking(firstUser.message.id, reason)
       } else if (r.emoji.name === Emojis.white_check_mark) {
         firstAnswered = true;
       }
     }
     if (user.id === secondUser.user.id) {
-      console.log("second user is reacting", secondAnswered);
       if (r.emoji.name === Emojis.no_entry) {
         collector.stop();
+        removeFromMatchmaking(secondUser.message.id, reason)
       } else if (r.emoji.name === Emojis.white_check_mark) {
         secondAnswered = true;
       }
