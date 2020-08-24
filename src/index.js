@@ -86,7 +86,7 @@ export default async function init() {
             msg.content === "!matchmaking" ||
             msg.content === "!mmr" ||
             msg.content === "!about" ||
-            (msg.member.id === guild.me.id &&
+            (msg.member?.id === guild.me.id &&
               !msg.content.startsWith(`**${Emojis.trophy}`))
         )
         .map((msg) => msg.delete())

@@ -1,4 +1,5 @@
 import vt from "vague-time";
+import {mmrForGuild} from './users';
 
 export const Emojis = {
   white_check_mark: "✅",
@@ -19,6 +20,10 @@ export const Emojis = {
 
 const BOOT_TIME = Date.now();
 
+export function mmrString(user, guildId) {
+  return  Math.round(mmrForGuild(user, guildId) * 100) / 100;
+}
+
 export function uptimeText() {
   const vague = vt.get({
     to: BOOT_TIME,
@@ -38,9 +43,9 @@ export function randomMatchEmoji() {
 export function matchedText(match) {
   const [firstUser, secondUser] = match.users;
   return `**MATCH FOUND!!**
-${randomMatchEmoji()} <@${firstUser.user.id}> (${firstUser.user.mmr}) and <@${
+${randomMatchEmoji()} <@${firstUser.user.id}> (${mmrString(firstUser.user)}) and <@${
     secondUser.user.id
-  }> (${secondUser.user.mmr}) should play!
+  }> (${mmrString(secondUser.user)}) should play!
 
 ${Emojis.white_check_mark} Accept match
 ${Emojis.no_entry} Reject match
